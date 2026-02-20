@@ -1,0 +1,10 @@
+﻿Analyzing calendar_service.dart...                              
+
+  error - The class 'GoogleSignIn' doesn't have an unnamed constructor - lib\services\calendar_service.dart:7:45 - new_with_undefined_constructor_default
+  error - The method 'signInSilently' isn't defined for the type 'GoogleSignIn' - lib\services\calendar_service.dart:20:58 - undefined_method
+warning - Dead code - lib\services\calendar_service.dart:21:19 - dead_code
+warning - The left operand can't be null, so the right operand is never executed - lib\services\calendar_service.dart:21:19 - dead_null_aware_expression
+  error - The method 'signIn' isn't defined for the type 'GoogleSignIn' - lib\services\calendar_service.dart:21:39 - undefined_method
+warning - The operand can't be 'null', so the condition is always 'false' - lib\services\calendar_service.dart:23:19 - unnecessary_null_comparison
+  error - The method 'authenticatedClient' isn't defined for the type 'GoogleSignIn' - lib\services\calendar_service.dart:27:46 - undefined_method
+

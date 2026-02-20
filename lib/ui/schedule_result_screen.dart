@@ -1,27 +1,80 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart'; // Untuk fitur copy ke clipboard
-import 'package:flutter_markdown/flutter_markdown.dart'; // Untuk render Markdown
-import 'package:markdown/markdown.dart' as md;
+import 'package:flutter/services.dart';
+import 'package:flutter_markdown/flutter_markdown.dart';
+import '../services/calendar_service.dart';
 
-class ScheduleResultScreen extends StatelessWidget {
-  final String scheduleResult; // Data hasil dari AI
-  const ScheduleResultScreen({super.key, required this.scheduleResult});
+class ScheduleResultScreen extends StatefulWidget {
+  final String scheduleResult;
+  final List<Map<String, dynamic>> tasks;
+
+  const ScheduleResultScreen({
+    super.key,
+    required this.scheduleResult,
+    required this.tasks,
+  });
+
+  @override
+  State<ScheduleResultScreen> createState() => _ScheduleResultScreenState();
+}
+
+class _ScheduleResultScreenState extends State<ScheduleResultScreen> {
+  bool isSyncing = false;
+
+  Future<void> _syncToCalendar() async {
+    setState(() => isSyncing = true);
+    try {
+      DateTime startTime = DateTime.now();
+      // Set to 08:00 AM today
+      startTime = DateTime(
+        startTime.year,
+        startTime.month,
+        startTime.day,
+        8,
+        0,
+      );
+
+      for (var task in widget.tasks) {
+        await CalendarService.addTaskToCalendar(
+          title: task['name'],
+          description: "Prioritas: ${task['priority']}",
+          startTime: startTime,
+          durationMinutes: task['duration'],
+        );
+        startTime = startTime.add(Duration(minutes: task['duration']));
+      }
+
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text("✅ Berhasil disinkronkan ke Google Calendar!"),
+          backgroundColor: Colors.green,
+        ),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text("❌ Gagal sinkron: $e"),
+          backgroundColor: Colors.red,
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => isSyncing = false);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.grey[50],
-      // APP BAR + COPY BUTTON
       appBar: AppBar(
         title: const Text("Hasil Jadwal Optimal"),
+        centerTitle: true,
         actions: [
           IconButton(
             icon: const Icon(Icons.copy),
             tooltip: "Salin Jadwal",
             onPressed: () {
-              // Menyalin seluruh hasil ke clipboard
-              Clipboard.setData(ClipboardData(text: scheduleResult));
-              // Notifikasi kecil ke user
+              Clipboard.setData(ClipboardData(text: widget.scheduleResult));
               ScaffoldMessenger.of(context).showSnackBar(
                 const SnackBar(content: Text("Jadwal berhasil disalin!")),
               );
@@ -34,35 +87,39 @@ class ScheduleResultScreen extends StatelessWidget {
           padding: const EdgeInsets.all(16.0),
           child: Column(
             children: [
-              // HEADER INFORMASI
               Container(
-                padding:
-                    const EdgeInsets.symmetric(vertical: 10, horizontal: 15),
+                padding: const EdgeInsets.symmetric(
+                  vertical: 12,
+                  horizontal: 16,
+                ),
                 decoration: BoxDecoration(
                   color: Colors.indigo.shade50,
-                  borderRadius: BorderRadius.circular(8),
+                  borderRadius: BorderRadius.circular(12),
                   border: Border.all(color: Colors.indigo.shade100),
                 ),
                 child: const Row(
                   children: [
                     Icon(Icons.auto_awesome, color: Colors.indigo),
-                    SizedBox(width: 10),
+                    SizedBox(width: 12),
                     Expanded(
                       child: Text(
                         "Jadwal ini disusun otomatis oleh AI berdasarkan prioritas Anda.",
-                        style: TextStyle(color: Colors.indigo, fontSize: 13),
+                        style: TextStyle(
+                          color: Colors.indigo,
+                          fontSize: 13,
+                          fontWeight: FontWeight.w500,
+                        ),
                       ),
                     ),
                   ],
                 ),
               ),
-              const SizedBox(height: 15),
-              // AREA HASIL (MARKDOWN)
+              const SizedBox(height: 16),
               Expanded(
                 child: Container(
                   decoration: BoxDecoration(
                     color: Colors.white,
-                    borderRadius: BorderRadius.circular(12),
+                    borderRadius: BorderRadius.circular(16),
                     boxShadow: [
                       BoxShadow(
                         color: Colors.black.withOpacity(0.05),
@@ -71,63 +128,95 @@ class ScheduleResultScreen extends StatelessWidget {
                       ),
                     ],
                   ),
-                  // Markdown otomatis memiliki scroll
                   child: ClipRRect(
-                    borderRadius: BorderRadius.circular(12),
+                    borderRadius: BorderRadius.circular(16),
                     child: Markdown(
-                      data: scheduleResult, // Data dari AI
-                      selectable: true, // Bisa copy sebagian teks
+                      data: widget.scheduleResult,
+                      selectable: true,
                       padding: const EdgeInsets.all(20),
-                      // Styling agar tampilan lebih profesional
                       styleSheet: MarkdownStyleSheet(
                         p: const TextStyle(
-                            fontSize: 15,
-                            height: 1.6,
-                            color: Colors.black87),
-                        // Styling heading
+                          fontSize: 15,
+                          height: 1.6,
+                          color: Colors.black87,
+                        ),
                         h1: const TextStyle(
-                            fontSize: 24,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.indigo),
+                          fontSize: 24,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.indigo,
+                        ),
                         h2: const TextStyle(
-                            fontSize: 20, fontWeight: FontWeight.bold),
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                        ),
                         h3: const TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.w600,
-                            color: Colors.indigoAccent),
-                        // Styling tabel
-                        tableBorder:
-                            TableBorder.all(color: Colors.grey, width: 1),
+                          fontSize: 18,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.indigoAccent,
+                        ),
+                        tableBorder: TableBorder.all(
+                          color: Colors.grey.shade300,
+                          width: 1,
+                        ),
                         tableHeadAlign: TextAlign.center,
                         tablePadding: const EdgeInsets.all(8),
+                        tableHead: const TextStyle(fontWeight: FontWeight.bold),
                       ),
-                      // Custom builder (opsional/advanced)
-                      builders: {"table": TableBuilder()},
                     ),
                   ),
                 ),
               ),
-              const SizedBox(height: 15),
-              // TOMBOL KEMBALI
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton.icon(
-                  onPressed: () => Navigator.pop(context),
-                  icon: const Icon(Icons.refresh),
-                  label: const Text("Buat Jadwal Baru"),
-                ),
+              const SizedBox(height: 20),
+              Row(
+                children: [
+                  Expanded(
+                    flex: 2,
+                    child: ElevatedButton.icon(
+                      onPressed: isSyncing ? null : _syncToCalendar,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.green.shade600,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                      icon: isSyncing
+                          ? const SizedBox(
+                              width: 20,
+                              height: 20,
+                              child: CircularProgressIndicator(
+                                color: Colors.white,
+                                strokeWidth: 2,
+                              ),
+                            )
+                          : const Icon(Icons.calendar_today),
+                      label: Text(
+                        isSyncing ? "Menyinkronkan..." : "Google Calendar",
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    flex: 1,
+                    child: OutlinedButton.icon(
+                      onPressed: () => Navigator.pop(context),
+                      style: OutlinedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                      icon: const Icon(Icons.edit),
+                      label: const Text("Edit"),
+                    ),
+                  ),
+                ],
               ),
             ],
           ),
         ),
       ),
     );
-  }
-}
-
-class TableBuilder extends MarkdownElementBuilder {
-  @override
-  Widget? visitElementAfter(md.Element element, TextStyle? preferredStyle) {
-    return null;
   }
 }

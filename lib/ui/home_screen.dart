@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
-import '../services/gemini_service.dart'; // Service untuk memanggil AI
+import 'package:flutter_staggered_animations/flutter_staggered_animations.dart';
+import '../services/gemini_service.dart';
+import '../services/storage_service.dart';
 import 'schedule_result_screen.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -10,17 +12,31 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  // Menyimpan daftar tugas dalam bentuk List of Map
-  final List<Map<String, dynamic>> tasks = [];
-  // Controller untuk mengambil input dari TextField
+  List<Map<String, dynamic>> tasks = [];
   final TextEditingController taskController = TextEditingController();
   final TextEditingController durationController = TextEditingController();
-  String? priority; // Menyimpan nilai dropdown
-  bool isLoading = false; // Status loading saat proses AI berjalan
+  String? priority;
+  bool isLoading = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadTasks();
+  }
+
+  Future<void> _loadTasks() async {
+    final loadedTasks = await StorageService.loadTasks();
+    setState(() {
+      tasks = loadedTasks;
+    });
+  }
+
+  Future<void> _saveTasks() async {
+    await StorageService.saveTasks(tasks);
+  }
 
   @override
   void dispose() {
-    // Controller harus dibersihkan agar tidak memory leak
     taskController.dispose();
     durationController.dispose();
     super.dispose();
@@ -31,16 +47,26 @@ class _HomeScreenState extends State<HomeScreen> {
         durationController.text.isNotEmpty &&
         priority != null) {
       setState(() {
-        tasks.add({
+        tasks.insert(0, {
+          "id": DateTime.now().millisecondsSinceEpoch
+              .toString(), // Add unique ID for animations
           "name": taskController.text,
           "priority": priority!,
           "duration": int.tryParse(durationController.text) ?? 30,
         });
       });
+      _saveTasks();
       taskController.clear();
       durationController.clear();
       setState(() => priority = null);
     }
+  }
+
+  void _deleteTask(int index) {
+    setState(() {
+      tasks.removeAt(index);
+    });
+    _saveTasks();
   }
 
   Future<void> _generateSchedule() async {
@@ -58,7 +84,7 @@ class _HomeScreenState extends State<HomeScreen> {
         context,
         MaterialPageRoute(
           builder: (context) =>
-              ScheduleResultScreen(scheduleResult: schedule),
+              ScheduleResultScreen(scheduleResult: schedule, tasks: tasks),
         ),
       );
     } catch (e) {
@@ -86,55 +112,97 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text("AI Schedule Generator")),
+      appBar: AppBar(
+        title: const Text("AI Schedule Generator"),
+        actions: [
+          if (tasks.isNotEmpty)
+            IconButton(
+              icon: const Icon(Icons.delete_sweep),
+              onPressed: () {
+                showDialog(
+                  context: context,
+                  builder: (context) => AlertDialog(
+                    title: const Text("Hapus Semua?"),
+                    content: const Text(
+                      "Apakah Anda yakin ingin menghapus semua tugas?",
+                    ),
+                    actions: [
+                      TextButton(
+                        onPressed: () => Navigator.pop(context),
+                        child: const Text("Batal"),
+                      ),
+                      TextButton(
+                        onPressed: () {
+                          setState(() => tasks.clear());
+                          _saveTasks();
+                          Navigator.pop(context);
+                        },
+                        child: const Text(
+                          "Hapus",
+                          style: TextStyle(color: Colors.red),
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              },
+            ),
+        ],
+      ),
       body: Column(
         children: [
-          // FORM INPUT TUGAS
           Card(
             margin: const EdgeInsets.all(16),
+            elevation: 4,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+            ),
             child: Padding(
               padding: const EdgeInsets.all(16.0),
               child: Column(
                 children: [
                   TextField(
                     controller: taskController,
-                    decoration: const InputDecoration(
+                    decoration: InputDecoration(
                       labelText: "Nama Tugas",
-                      prefixIcon: Icon(Icons.task),
-                      border: OutlineInputBorder(),
+                      hintText: "Contoh: Olahraga Pagi",
+                      prefixIcon: const Icon(Icons.task_alt),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
                     ),
                   ),
-                  const SizedBox(height: 10),
+                  const SizedBox(height: 12),
                   Row(
                     children: [
-                      // Input durasi
                       Expanded(
                         child: TextField(
                           controller: durationController,
                           keyboardType: TextInputType.number,
-                          decoration: const InputDecoration(
+                          decoration: InputDecoration(
                             labelText: "Durasi (Menit)",
-                            prefixIcon: Icon(Icons.timer),
-                            border: OutlineInputBorder(),
+                            prefixIcon: const Icon(Icons.timer_outlined),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
                           ),
                         ),
                       ),
-                      const SizedBox(width: 10),
-                      // Dropdown prioritas
+                      const SizedBox(width: 12),
                       Expanded(
                         child: DropdownButtonFormField<String>(
                           value: priority,
-                          decoration: const InputDecoration(
+                          decoration: InputDecoration(
                             labelText: "Prioritas",
-                            border: OutlineInputBorder(),
-                            prefixIcon: Icon(Icons.flag),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            prefixIcon: const Icon(Icons.flag_outlined),
                           ),
                           items: ["Tinggi", "Sedang", "Rendah"]
                               .map(
-                                (e) => DropdownMenuItem(
-                                  value: e,
-                                  child: Text(e),
-                                ),
+                                (e) =>
+                                    DropdownMenuItem(value: e, child: Text(e)),
                               )
                               .toList(),
                           onChanged: (val) => setState(() => priority = val),
@@ -142,84 +210,148 @@ class _HomeScreenState extends State<HomeScreen> {
                       ),
                     ],
                   ),
-                  const SizedBox(height: 20),
-                  // Tombol tambah tugas
+                  const SizedBox(height: 16),
                   SizedBox(
                     height: 50,
                     width: double.infinity,
                     child: ElevatedButton.icon(
                       onPressed: _addTask,
+                      style: ElevatedButton.styleFrom(
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
                       icon: const Icon(Icons.add),
-                      label: const Text("Tambah ke Daftar"),
+                      label: const Text(
+                        "Tambah ke Daftar",
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
                     ),
                   ),
                 ],
               ),
             ),
           ),
-          // LIST TUGAS
           Expanded(
             child: tasks.isEmpty
-                ? const Center(
-                    child: Text(
-                      "Belum ada tugas.\nTambahkan tugas di atas!",
-                      textAlign: TextAlign.center,
-                    ),
-                  )
-                : ListView.builder(
-                    itemCount: tasks.length,
-                    itemBuilder: (context, index) {
-                      final task = tasks[index];
-                      final taskName = (task['name'] ?? '').toString();
-                      final taskPriority = (task['priority'] ?? '').toString();
-                      final taskDuration = task['duration'];
-                      return Dismissible(
-                        key: Key(taskName),
-                        background: Container(color: Colors.red),
-                        onDismissed: (_) =>
-                            setState(() => tasks.removeAt(index)),
-                        child: Card(
-                          margin: const EdgeInsets.symmetric(
-                              horizontal: 16, vertical: 4),
-                          child: ListTile(
-                            leading: CircleAvatar(
-                              backgroundColor: _getColor(taskPriority),
-                              child: Text(
-                                taskName.isNotEmpty
-                                    ? taskName[0].toUpperCase()
-                                    : "?",
-                                style: const TextStyle(color: Colors.white),
+                ? AnimationConfiguration.synchronized(
+                    child: FadeInAnimation(
+                      duration: const Duration(milliseconds: 500),
+                      child: Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(
+                              Icons.calendar_today_outlined,
+                              size: 80,
+                              color: Colors.grey[300],
+                            ),
+                            const SizedBox(height: 16),
+                            Text(
+                              "Belum ada tugas.\nTambahkan tugas di atas!",
+                              textAlign: TextAlign.center,
+                              style: TextStyle(
+                                color: Colors.grey[600],
+                                fontSize: 16,
                               ),
                             ),
-                            title: Text(
-                              taskName,
-                              style:
-                                  const TextStyle(fontWeight: FontWeight.bold),
-                            ),
-                            subtitle: Text(
-                              "${taskDuration ?? '-'} Menit • $taskPriority",
-                            ),
-                            trailing: IconButton(
-                              icon: const Icon(Icons.delete, color: Colors.red),
-                              onPressed: () =>
-                                  setState(() => tasks.removeAt(index)),
+                          ],
+                        ),
+                      ),
+                    ),
+                  )
+                : AnimationLimiter(
+                    child: ListView.builder(
+                      itemCount: tasks.length,
+                      padding: const EdgeInsets.only(bottom: 80),
+                      itemBuilder: (context, index) {
+                        final task = tasks[index];
+                        final taskId = task['id'] ?? index.toString();
+                        return AnimationConfiguration.staggeredList(
+                          position: index,
+                          duration: const Duration(milliseconds: 375),
+                          child: SlideAnimation(
+                            verticalOffset: 50.0,
+                            child: FadeInAnimation(
+                              child: Dismissible(
+                                key: Key(taskId),
+                                direction: DismissDirection.endToStart,
+                                background: Container(
+                                  alignment: Alignment.centerRight,
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 20,
+                                  ),
+                                  color: Colors.red,
+                                  child: const Icon(
+                                    Icons.delete,
+                                    color: Colors.white,
+                                  ),
+                                ),
+                                onDismissed: (_) => _deleteTask(index),
+                                child: Card(
+                                  margin: const EdgeInsets.symmetric(
+                                    horizontal: 16,
+                                    vertical: 6,
+                                  ),
+                                  elevation: 2,
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                  child: ListTile(
+                                    leading: CircleAvatar(
+                                      backgroundColor: _getColor(
+                                        task['priority'],
+                                      ),
+                                      child: Text(
+                                        task['name'][0].toUpperCase(),
+                                        style: const TextStyle(
+                                          color: Colors.white,
+                                        ),
+                                      ),
+                                    ),
+                                    title: Text(
+                                      task['name'],
+                                      style: const TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                    subtitle: Text(
+                                      "${task['duration']} Menit • ${task['priority']}",
+                                    ),
+                                    trailing: IconButton(
+                                      icon: const Icon(
+                                        Icons.delete_outline,
+                                        color: Colors.grey,
+                                      ),
+                                      onPressed: () => _deleteTask(index),
+                                    ),
+                                  ),
+                                ),
+                              ),
                             ),
                           ),
-                        ),
-                      );
-                    },
+                        );
+                      },
+                    ),
                   ),
           ),
         ],
       ),
-      // FAB GENERATE AI
       floatingActionButton: FloatingActionButton.extended(
         onPressed: isLoading ? null : _generateSchedule,
+        backgroundColor: Colors.indigo,
+        foregroundColor: Colors.white,
         icon: isLoading
             ? const SizedBox(
                 width: 20,
                 height: 20,
-                child: CircularProgressIndicator(color: Colors.white),
+                child: CircularProgressIndicator(
+                  color: Colors.white,
+                  strokeWidth: 2,
+                ),
               )
             : const Icon(Icons.auto_awesome),
         label: Text(isLoading ? "Memproses..." : "Buat Jadwal AI"),

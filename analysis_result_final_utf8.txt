@@ -1,0 +1,8 @@
+﻿Analyzing calendar_service.dart...                              
+
+   info - The 'if' statement could be replaced by a null-aware assignment - lib\services\calendar_service.dart:27:7 - prefer_conditional_assignment
+warning - The operand can't be 'null', so the condition is always 'false' - lib\services\calendar_service.dart:31:19 - unnecessary_null_comparison
+warning - Dead code - lib\services\calendar_service.dart:31:28 - dead_code
+warning - The operand can't be 'null', so the condition is always 'false' - lib\services\calendar_service.dart:45:22 - unnecessary_null_comparison
+warning - Dead code - lib\services\calendar_service.dart:45:31 - dead_code
+
