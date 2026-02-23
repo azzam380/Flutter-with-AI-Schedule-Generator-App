@@ -23,25 +23,7 @@ class _ScheduleResultScreenState extends State<ScheduleResultScreen> {
   Future<void> _syncToCalendar() async {
     setState(() => isSyncing = true);
     try {
-      DateTime startTime = DateTime.now();
-      // Set to 08:00 AM today
-      startTime = DateTime(
-        startTime.year,
-        startTime.month,
-        startTime.day,
-        8,
-        0,
-      );
-
-      for (var task in widget.tasks) {
-        await CalendarService.addTaskToCalendar(
-          title: task['name'],
-          description: "Prioritas: ${task['priority']}",
-          startTime: startTime,
-          durationMinutes: task['duration'],
-        );
-        startTime = startTime.add(Duration(minutes: task['duration']));
-      }
+      await CalendarService.exportMarkdownToCalendar(widget.scheduleResult);
 
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -70,6 +52,11 @@ class _ScheduleResultScreenState extends State<ScheduleResultScreen> {
         title: const Text("Hasil Jadwal Optimal"),
         centerTitle: true,
         actions: [
+          IconButton(
+            icon: const Icon(Icons.event_available),
+            tooltip: "Export ke Google Calendar",
+            onPressed: isSyncing ? null : _syncToCalendar,
+          ),
           IconButton(
             icon: const Icon(Icons.copy),
             tooltip: "Salin Jadwal",
@@ -192,7 +179,7 @@ class _ScheduleResultScreenState extends State<ScheduleResultScreen> {
                             )
                           : const Icon(Icons.calendar_today),
                       label: Text(
-                        isSyncing ? "Menyinkronkan..." : "Google Calendar",
+                        isSyncing ? "Menyinkronkan..." : "Export ke Calendar",
                       ),
                     ),
                   ),

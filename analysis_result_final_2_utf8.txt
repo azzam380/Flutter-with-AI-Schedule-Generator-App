@@ -2,13 +2,13 @@
 
    info - 'useInheritedMediaQuery' is deprecated and shouldn't be used. Remove this parameter as it is now ignored. MaterialApp never introduces its own MediaQuery; the View widget takes care of that. This feature was deprecated after v3.7.0-29.0.pre - lib\main.dart:27:7 - deprecated_member_use
   error - Unused import: 'package:extension_google_sign_in_as_googleapis_auth/extension_google_sign_in_as_googleapis_auth.dart' - lib\services\calendar_service.dart:3:8 - unused_import
-  error - The class 'GoogleSignIn' doesn't have an unnamed constructor - lib\services\calendar_service.dart:7:45 - new_with_undefined_constructor_default
-  error - The method 'signInSilently' isn't defined for the type 'GoogleSignIn' - lib\services\calendar_service.dart:81:58 - undefined_method
-warning - Dead code - lib\services\calendar_service.dart:82:19 - dead_code
-warning - The left operand can't be null, so the right operand is never executed - lib\services\calendar_service.dart:82:19 - dead_null_aware_expression
-  error - The method 'signIn' isn't defined for the type 'GoogleSignIn' - lib\services\calendar_service.dart:82:39 - undefined_method
-warning - The operand can't be 'null', so the condition is always 'false' - lib\services\calendar_service.dart:84:19 - unnecessary_null_comparison
-  error - The method 'authenticatedClient' isn't defined for the type 'GoogleSignInAccount' - lib\services\calendar_service.dart:89:40 - undefined_method
+  error - The class 'GoogleSignIn' doesn't have an unnamed constructor - lib\services\calendar_service.dart:14:39 - new_with_undefined_constructor_default
+  error - The method 'signInSilently' isn't defined for the type 'GoogleSignIn' - lib\services\calendar_service.dart:19:57 - undefined_method
+warning - Dead code - lib\services\calendar_service.dart:20:19 - dead_code
+warning - The left operand can't be null, so the right operand is never executed - lib\services\calendar_service.dart:20:19 - dead_null_aware_expression
+  error - The method 'signIn' isn't defined for the type 'GoogleSignIn' - lib\services\calendar_service.dart:20:38 - undefined_method
+warning - The operand can't be 'null', so the condition is always 'false' - lib\services\calendar_service.dart:22:19 - unnecessary_null_comparison
+  error - The method 'authenticatedClient' isn't defined for the type 'GoogleSignInAccount' - lib\services\calendar_service.dart:26:40 - undefined_method
    info - 'value' is deprecated and shouldn't be used. Use initialValue instead. This will set the initial value for the form field. This feature was deprecated after v3.33.0-1.0.pre - lib\ui\home_screen.dart:194:27 - deprecated_member_use
    info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\ui\schedule_result_screen.dart:107:45 - deprecated_member_use
   error - The name 'MyApp' isn't a class - test\widget_test.dart:16:35 - creation_with_non_type

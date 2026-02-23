@@ -1,60 +1,113 @@
 import 'package:google_sign_in/google_sign_in.dart';
-import 'package:googleapis/calendar/v3.dart';
-// ignore: unused_import
+import 'package:googleapis/calendar/v3.dart' as cal;
 import 'package:extension_google_sign_in_as_googleapis_auth/extension_google_sign_in_as_googleapis_auth.dart';
 
 class CalendarService {
-  static final GoogleSignIn _googleSignIn = GoogleSignIn.instance;
-  static const String _clientId =
-      '585930392757-bdreeg609hdjqbh1po4sberloojjrom7.apps.googleusercontent.com';
+  // GANTI dengan Client ID dari Google Cloud Console (wajib untuk Web)
+  // https://console.cloud.google.com/apis/credentials
+  static const String googleClientId =
+      "809885834954-j6u776unsh6e6re2g3p2v943k9b4o1v0.apps.googleusercontent.com"; // Ganti dengan milikmu
 
-  static Future<void> addTaskToCalendar({
-    required String title,
-    required String description,
-    required DateTime startTime,
-    required int durationMinutes,
-  }) async {
+  /// Fungsi utama untuk memparse Markdown dan mengekspor ke Google Calendar
+  static Future<void> exportMarkdownToCalendar(String markdown) async {
+    final events = parseMarkdown(markdown);
+    if (events.isEmpty) {
+      throw Exception("Format jadwal tidak ditemukan dalam teks.");
+    }
+
+    // Inisialisasi GoogleSignIn menggunakan singleton (API v7.0+)
+    final googleSignIn = GoogleSignIn.instance;
+    await googleSignIn.initialize(
+      clientId: googleClientId.contains("YOUR_CLIENT_ID")
+          ? null
+          : googleClientId,
+    );
+
     try {
-      // Inisialisasi GoogleSignIn (Wajib untuk versi 7.0.0+)
-      await _googleSignIn.initialize(clientId: _clientId);
+      // 1. Autentikasi user (Sign In)
+      // Pada versi ini, authenticate() mengembalikan objek non-nullable atau throw Error jika gagal
+      await googleSignIn.authenticate();
 
-      // Coba login secara silent (menggantikan signInSilently)
-      GoogleSignInAccount? account = await _googleSignIn
-          .attemptLightweightAuthentication();
+      final scopes = <String>[cal.CalendarApi.calendarEventsScope];
 
-      // Jika tidak bisa silent, lakukan login interaktif (menggantikan signIn)
-      // Catatan: authenticate() di versi 7.x mengembalikan non-nullable GoogleSignInAccount
-      // atau melempar exception jika gagal/batal.
-      account ??= await _googleSignIn.authenticate();
-
-      // Meminta otorisasi untuk scope Calendar (Wajib di versi 7.0.0+)
-      final authorization = await _googleSignIn.authorizationClient
-          .authorizeScopes(<String>[CalendarApi.calendarEventsScope]);
-
-      // Mendapatkan auth client menggunakan extension method 'authClient' dari
-      // package extension_google_sign_in_as_googleapis_auth (versi 3.0.0+)
-      final authClient = authorization.authClient(
-        scopes: <String>[CalendarApi.calendarEventsScope],
+      // 2. Gunakan authorizationClient untuk meminta izin (scopes) secara eksplisit (Pola baru GIS 7.x)
+      final auth = await googleSignIn.authorizationClient.authorizeScopes(
+        scopes,
       );
 
-      var calendar = CalendarApi(authClient);
+      // 3. Mendapatkan authClient menggunakan extension pada GoogleSignInClientAuthorization
+      // Di versi 3.0.0+, method authClient() dipanggil pada objek hasil otorisasi dengan menyertakan scopes
+      final authClient = auth.authClient(scopes: scopes);
 
-      final event = Event(
-        summary: title,
-        description: description,
-        start: EventDateTime(dateTime: startTime.toUtc(), timeZone: 'UTC'),
-        end: EventDateTime(
-          dateTime: startTime.add(Duration(minutes: durationMinutes)).toUtc(),
-          timeZone: 'UTC',
-        ),
-      );
+      final calendar = cal.CalendarApi(authClient);
 
-      await calendar.events.insert(event, 'primary');
+      for (var e in events) {
+        final event = cal.Event(
+          summary: e['title'],
+          description: e['description'],
+          start: cal.EventDateTime(
+            dateTime: (e['startTime'] as DateTime).toUtc(),
+            timeZone: 'UTC',
+          ),
+          end: cal.EventDateTime(
+            dateTime: (e['endTime'] as DateTime).toUtc(),
+            timeZone: 'UTC',
+          ),
+        );
+        await calendar.events.insert(event, 'primary');
+      }
     } catch (e) {
       print('Calendar Error: $e');
       rethrow;
     }
   }
 
-  static Future<void> signOut() => _googleSignIn.signOut();
+  /// Memparse tabel Markdown
+  static List<Map<String, dynamic>> parseMarkdown(String markdown) {
+    final List<Map<String, dynamic>> events = [];
+    final regExp = RegExp(
+      r'\|\s*\d+\s*\|\s*([^|]+)\s*\|\s*([^|]+)\s*\|\s*(\d+)\s*\|\s*(\d{2}:\d{2})\s*\|\s*(\d{2}:\d{2})\s*\|',
+    );
+
+    final now = DateTime.now();
+    final matches = regExp.allMatches(markdown);
+
+    for (final match in matches) {
+      final title = match.group(1)!.trim();
+      if (title.toLowerCase() == 'tugas' || title.contains('---')) continue;
+
+      try {
+        final priority = match.group(2)!.trim();
+        final startTimeStr = match.group(4)!.trim();
+        final endTimeStr = match.group(5)!.trim();
+
+        final startParts = startTimeStr.split(':');
+        final endParts = endTimeStr.split(':');
+
+        final startTime = DateTime(
+          now.year,
+          now.month,
+          now.day,
+          int.parse(startParts[0]),
+          int.parse(startParts[1]),
+        );
+
+        final endTime = DateTime(
+          now.year,
+          now.month,
+          now.day,
+          int.parse(endParts[0]),
+          int.parse(endParts[1]),
+        );
+
+        events.add({
+          'title': title,
+          'description': 'Prioritas: $priority (AI Generated)',
+          'startTime': startTime,
+          'endTime': endTime,
+        });
+      } catch (_) {}
+    }
+    return events;
+  }
 }
