@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
+import '../services/auth_service.dart';
 import '../services/calendar_service.dart';
 
 class ScheduleResultScreen extends StatefulWidget {
@@ -19,13 +20,160 @@ class ScheduleResultScreen extends StatefulWidget {
 
 class _ScheduleResultScreenState extends State<ScheduleResultScreen> {
   bool isSyncing = false;
+  String selectedCalendarId = 'primary';
+  String selectedCalendarName = 'Primary Calendar';
+
+  Future<void> _showCalendarPicker() async {
+    final user = AuthService.currentUser;
+    if (user == null || !user.isGoogleUser) {
+      _showErrorDialog(
+        "Fitur ini hanya tersedia jika Anda masuk menggunakan Google Account.",
+      );
+      return;
+    }
+    try {
+      // Show loading while fetching calendars
+      _showLoadingDialog('Mengambil daftar kalender...');
+      final calendars = await CalendarService.getCalendarList();
+      if (!mounted) return;
+      Navigator.pop(context); // Close loading
+
+      await showDialog(
+        context: context,
+        builder: (context) => AlertDialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+          ),
+          title: const Row(
+            children: [
+              Icon(Icons.calendar_month, color: Colors.indigo),
+              SizedBox(width: 10),
+              Text("Pilih Kalender"),
+            ],
+          ),
+          content: SizedBox(
+            width: double.maxFinite,
+            child: ListView.separated(
+              shrinkWrap: true,
+              itemCount: calendars.length,
+              separatorBuilder: (context, index) => const Divider(),
+              itemBuilder: (context, index) {
+                final cal = calendars[index];
+                final isSelected = selectedCalendarId == cal.id;
+                return ListTile(
+                  leading: CircleAvatar(
+                    backgroundColor: isSelected
+                        ? Colors.indigo
+                        : Colors.grey.shade200,
+                    child: Icon(
+                      Icons.event,
+                      color: isSelected ? Colors.white : Colors.grey,
+                    ),
+                  ),
+                  title: Text(
+                    cal.summary ?? 'Tanpa Nama',
+                    style: TextStyle(
+                      fontWeight: isSelected
+                          ? FontWeight.bold
+                          : FontWeight.normal,
+                    ),
+                  ),
+                  subtitle: Text(
+                    cal.id == 'primary' ? 'Kalender Utama' : 'Kalender Custom',
+                  ),
+                  trailing: isSelected
+                      ? const Icon(Icons.check_circle, color: Colors.indigo)
+                      : null,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  selected: isSelected,
+                  onTap: () {
+                    setState(() {
+                      selectedCalendarId = cal.id ?? 'primary';
+                      selectedCalendarName = cal.summary ?? 'Primary Calendar';
+                    });
+                    Navigator.pop(context);
+                  },
+                );
+              },
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text("Batal"),
+            ),
+          ],
+        ),
+      );
+    } catch (e) {
+      if (mounted) {
+        Navigator.pop(context); // Close loading
+        _showErrorDialog("Gagal mengambil daftar kalender: $e");
+      }
+    }
+  }
+
+  void _showLoadingDialog(String message) {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => AlertDialog(
+        content: Row(
+          children: [
+            const CircularProgressIndicator(),
+            const SizedBox(width: 20),
+            Expanded(child: Text(message)),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showErrorDialog(String message) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text("Error"),
+        content: Text(message),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text("OK"),
+          ),
+        ],
+      ),
+    );
+  }
 
   Future<void> _syncToCalendar() async {
+    final user = AuthService.currentUser;
+    if (user == null || !user.isGoogleUser) {
+      _showErrorDialog(
+        "Fitur ini hanya tersedia jika Anda masuk menggunakan Google Account.",
+      );
+      return;
+    }
+
+    final events = CalendarService.parseMarkdown(widget.scheduleResult);
+    if (events.isEmpty) {
+      _showErrorDialog("Tidak ada jadwal yang valid untuk diekspor.");
+      return;
+    }
+
     setState(() => isSyncing = true);
+    _showLoadingDialog('Sedang mengekspor ke $selectedCalendarName...');
+
     try {
-      await CalendarService.exportMarkdownToCalendar(widget.scheduleResult);
+      await CalendarService.exportEventsToCalendar(
+        events,
+        calendarId: selectedCalendarId,
+      );
 
       if (!mounted) return;
+      Navigator.pop(context); // Close loading
+
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text("✅ Berhasil disinkronkan ke Google Calendar!"),
@@ -33,12 +181,9 @@ class _ScheduleResultScreenState extends State<ScheduleResultScreen> {
         ),
       );
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text("❌ Gagal sinkron: $e"),
-          backgroundColor: Colors.red,
-        ),
-      );
+      if (!mounted) return;
+      Navigator.pop(context); // Close loading
+      _showErrorDialog("Gagal sinkron: $e");
     } finally {
       if (mounted) setState(() => isSyncing = false);
     }
@@ -53,9 +198,9 @@ class _ScheduleResultScreenState extends State<ScheduleResultScreen> {
         centerTitle: true,
         actions: [
           IconButton(
-            icon: const Icon(Icons.event_available),
-            tooltip: "Export ke Google Calendar",
-            onPressed: isSyncing ? null : _syncToCalendar,
+            icon: const Icon(Icons.settings_suggest),
+            tooltip: "Pilih Kalender",
+            onPressed: isSyncing ? null : _showCalendarPicker,
           ),
           IconButton(
             icon: const Icon(Icons.copy),
@@ -84,19 +229,23 @@ class _ScheduleResultScreenState extends State<ScheduleResultScreen> {
                   borderRadius: BorderRadius.circular(12),
                   border: Border.all(color: Colors.indigo.shade100),
                 ),
-                child: const Row(
+                child: Row(
                   children: [
-                    Icon(Icons.auto_awesome, color: Colors.indigo),
-                    SizedBox(width: 12),
+                    const Icon(Icons.auto_awesome, color: Colors.indigo),
+                    const SizedBox(width: 12),
                     Expanded(
                       child: Text(
-                        "Jadwal ini disusun otomatis oleh AI berdasarkan prioritas Anda.",
-                        style: TextStyle(
+                        "Mengekspor ke: $selectedCalendarName",
+                        style: const TextStyle(
                           color: Colors.indigo,
                           fontSize: 13,
                           fontWeight: FontWeight.w500,
                         ),
                       ),
+                    ),
+                    TextButton(
+                      onPressed: isSyncing ? null : _showCalendarPicker,
+                      child: const Text("Ganti"),
                     ),
                   ],
                 ),
@@ -168,16 +317,7 @@ class _ScheduleResultScreenState extends State<ScheduleResultScreen> {
                           borderRadius: BorderRadius.circular(12),
                         ),
                       ),
-                      icon: isSyncing
-                          ? const SizedBox(
-                              width: 20,
-                              height: 20,
-                              child: CircularProgressIndicator(
-                                color: Colors.white,
-                                strokeWidth: 2,
-                              ),
-                            )
-                          : const Icon(Icons.calendar_today),
+                      icon: const Icon(Icons.calendar_today),
                       label: Text(
                         isSyncing ? "Menyinkronkan..." : "Export ke Calendar",
                       ),

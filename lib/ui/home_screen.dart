@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_staggered_animations/flutter_staggered_animations.dart';
+import '../services/auth_service.dart';
 import '../services/gemini_service.dart';
 import '../services/storage_service.dart';
 import 'schedule_result_screen.dart';
@@ -112,9 +113,103 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      drawer: Drawer(
+        child: Column(
+          children: [
+            Builder(
+              builder: (context) {
+                final user = AuthService.currentUser;
+                return UserAccountsDrawerHeader(
+                  decoration: BoxDecoration(color: Colors.indigo.shade700),
+                  currentAccountPicture: CircleAvatar(
+                    backgroundColor: Colors.white,
+                    backgroundImage: user?.photoUrl != null
+                        ? NetworkImage(user!.photoUrl!)
+                        : null,
+                    child: user?.photoUrl == null
+                        ? const Icon(
+                            Icons.person,
+                            size: 40,
+                            color: Colors.indigo,
+                          )
+                        : null,
+                  ),
+                  accountName: Text(
+                    user?.displayName ?? "User",
+                    style: const TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                  accountEmail: Text(user?.email ?? "email@example.com"),
+                );
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.home_outlined),
+              title: const Text("Beranda"),
+              onTap: () => Navigator.pop(context),
+            ),
+            ListTile(
+              leading: const Icon(Icons.history_outlined),
+              title: const Text("Riwayat Jadwal"),
+              onTap: () {
+                // Future feature
+                Navigator.pop(context);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.settings_outlined),
+              title: const Text("Pengaturan"),
+              onTap: () {
+                // Future feature
+                Navigator.pop(context);
+              },
+            ),
+            const Spacer(),
+            const Divider(),
+            ListTile(
+              leading: const Icon(Icons.logout, color: Colors.red),
+              title: const Text(
+                "Keluar",
+                style: TextStyle(
+                  color: Colors.red,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              onTap: () async {
+                await AuthService.signOut();
+              },
+            ),
+            const SizedBox(height: 20),
+          ],
+        ),
+      ),
       appBar: AppBar(
         title: const Text("AI Schedule Generator"),
+        leading: Builder(
+          builder: (context) {
+            final user = AuthService.currentUser;
+            return InkWell(
+              onTap: () => Scaffold.of(context).openDrawer(),
+              child: Padding(
+                padding: const EdgeInsets.all(8.0),
+                child: CircleAvatar(
+                  backgroundImage: user?.photoUrl != null
+                      ? NetworkImage(user!.photoUrl!)
+                      : null,
+                  child: user?.photoUrl == null
+                      ? const Icon(Icons.person)
+                      : null,
+                ),
+              ),
+            );
+          },
+        ),
         actions: [
+          IconButton(
+            icon: const Icon(Icons.logout),
+            onPressed: () async {
+              await AuthService.signOut();
+            },
+          ),
           if (tasks.isNotEmpty)
             IconButton(
               icon: const Icon(Icons.delete_sweep),

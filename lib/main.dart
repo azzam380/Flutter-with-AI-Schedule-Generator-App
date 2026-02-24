@@ -3,8 +3,12 @@ import 'package:flutter/foundation.dart'; // untuk kReleaseMode
 import 'package:flutter/material.dart';
 
 import 'ui/home_screen.dart';
+import 'ui/login_screen.dart';
+import 'services/auth_service.dart';
 
-void main() {
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await AuthService.checkInitialAuth();
   runApp(
     DevicePreview(
       enabled: !kReleaseMode, // mati otomatis saat build release
@@ -45,7 +49,15 @@ class MainApp extends StatelessWidget {
         ),
       ),
 
-      home: const HomeScreen(), // Halaman pertama saat aplikasi dibuka
+      home: StreamBuilder(
+        stream: AuthService.onAuthStateChanged,
+        builder: (context, snapshot) {
+          if (AuthService.currentUser != null) {
+            return const HomeScreen();
+          }
+          return const LoginScreen();
+        },
+      ),
     );
   }
 }
