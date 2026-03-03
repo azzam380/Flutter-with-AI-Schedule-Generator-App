@@ -16,6 +16,7 @@ class _HomeScreenState extends State<HomeScreen> {
   List<Map<String, dynamic>> tasks = [];
   final TextEditingController taskController = TextEditingController();
   final TextEditingController durationController = TextEditingController();
+  final GlobalKey<AnimatedListState> _listKey = GlobalKey<AnimatedListState>();
   String? priority;
   bool isLoading = false;
 
@@ -47,16 +48,22 @@ class _HomeScreenState extends State<HomeScreen> {
     if (taskController.text.isNotEmpty &&
         durationController.text.isNotEmpty &&
         priority != null) {
+      final newTask = {
+        "id": DateTime.now().millisecondsSinceEpoch.toString(),
+        "name": taskController.text,
+        "priority": priority!,
+        "duration": int.tryParse(durationController.text) ?? 30,
+      };
+
       setState(() {
-        tasks.insert(0, {
-          "id": DateTime.now().millisecondsSinceEpoch
-              .toString(), // Add unique ID for animations
-          "name": taskController.text,
-          "priority": priority!,
-          "duration": int.tryParse(durationController.text) ?? 30,
-        });
+        tasks.insert(0, newTask);
       });
+      _listKey.currentState?.insertItem(
+        0,
+        duration: const Duration(milliseconds: 500),
+      );
       _saveTasks();
+
       taskController.clear();
       durationController.clear();
       setState(() => priority = null);
@@ -64,10 +71,52 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   void _deleteTask(int index) {
+    final removedTask = tasks[index];
+
+    _listKey.currentState?.removeItem(
+      index,
+      (context, animation) => _buildTaskItem(removedTask, index, animation),
+      duration: const Duration(milliseconds: 400),
+    );
+
     setState(() {
       tasks.removeAt(index);
     });
     _saveTasks();
+  }
+
+  void _deleteAllTasks() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text("Hapus Semua?"),
+        content: const Text("Apakah Anda yakin ingin menghapus semua tugas?"),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text("Batal"),
+          ),
+          TextButton(
+            onPressed: () {
+              // Animasi hapus satu per satu dari belakang ke depan
+              for (int i = tasks.length - 1; i >= 0; i--) {
+                final removedTask = tasks[i];
+                _listKey.currentState?.removeItem(
+                  i,
+                  (context, animation) =>
+                      _buildTaskItem(removedTask, i, animation),
+                  duration: const Duration(milliseconds: 300),
+                );
+              }
+              setState(() => tasks.clear());
+              _saveTasks();
+              Navigator.pop(context);
+            },
+            child: const Text("Hapus", style: TextStyle(color: Colors.red)),
+          ),
+        ],
+      ),
+    );
   }
 
   Future<void> _generateSchedule() async {
@@ -108,6 +157,74 @@ class _HomeScreenState extends State<HomeScreen> {
       default:
         return Colors.grey;
     }
+  }
+
+  Widget _buildTaskItem(
+    Map<String, dynamic> task,
+    int index,
+    Animation<double> animation,
+  ) {
+    return SizeTransition(
+      sizeFactor: animation,
+      child: FadeTransition(
+        opacity: animation,
+        child: AnimationConfiguration.staggeredList(
+          position: index,
+          duration: const Duration(milliseconds: 375),
+          child: SlideAnimation(
+            verticalOffset: 50.0,
+            child: ScaleAnimation(
+              scale: 0.8,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 6,
+                ),
+                child: Card(
+                  elevation: 2,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  clipBehavior: Clip.antiAlias,
+                  child: Container(
+                    decoration: BoxDecoration(
+                      border: Border(
+                        left: BorderSide(
+                          color: _getColor(task['priority']),
+                          width: 6,
+                        ),
+                      ),
+                    ),
+                    child: ListTile(
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 4,
+                      ),
+                      title: Text(
+                        task['name'],
+                        style: const TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                      subtitle: Text(
+                        "${task['duration']} Menit • ${task['priority']}",
+                        style: TextStyle(color: Colors.grey[600]),
+                      ),
+                      trailing: IconButton(
+                        icon: const Icon(
+                          Icons.delete_outline,
+                          color: Colors.redAccent,
+                          size: 20,
+                        ),
+                        onPressed: () => _deleteTask(index),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
   }
 
   @override
@@ -158,7 +275,6 @@ class _HomeScreenState extends State<HomeScreen> {
               leading: const Icon(Icons.history_outlined),
               title: const Text("Riwayat Jadwal"),
               onTap: () {
-                // Future feature
                 Navigator.pop(context);
               },
             ),
@@ -166,7 +282,6 @@ class _HomeScreenState extends State<HomeScreen> {
               leading: const Icon(Icons.settings_outlined),
               title: const Text("Pengaturan"),
               onTap: () {
-                // Future feature
                 Navigator.pop(context);
               },
             ),
@@ -225,34 +340,7 @@ class _HomeScreenState extends State<HomeScreen> {
           if (tasks.isNotEmpty)
             IconButton(
               icon: const Icon(Icons.delete_sweep),
-              onPressed: () {
-                showDialog(
-                  context: context,
-                  builder: (context) => AlertDialog(
-                    title: const Text("Hapus Semua?"),
-                    content: const Text(
-                      "Apakah Anda yakin ingin menghapus semua tugas?",
-                    ),
-                    actions: [
-                      TextButton(
-                        onPressed: () => Navigator.pop(context),
-                        child: const Text("Batal"),
-                      ),
-                      TextButton(
-                        onPressed: () {
-                          setState(() => tasks.clear());
-                          _saveTasks();
-                          Navigator.pop(context);
-                        },
-                        child: const Text(
-                          "Hapus",
-                          style: TextStyle(color: Colors.red),
-                        ),
-                      ),
-                    ],
-                  ),
-                );
-              },
+              onPressed: _deleteAllTasks,
             ),
         ],
       ),
@@ -389,86 +477,12 @@ class _HomeScreenState extends State<HomeScreen> {
                     ),
                   )
                 : AnimationLimiter(
-                    child: ListView.builder(
-                      itemCount: tasks.length,
+                    child: AnimatedList(
+                      key: _listKey,
+                      initialItemCount: tasks.length,
                       padding: const EdgeInsets.only(bottom: 80),
-                      itemBuilder: (context, index) {
-                        final task = tasks[index];
-                        final taskId = task['id'] ?? index.toString();
-                        return AnimationConfiguration.staggeredList(
-                          position: index,
-                          duration: const Duration(milliseconds: 375),
-                          child: SlideAnimation(
-                            verticalOffset: 50.0,
-                            child: FadeInAnimation(
-                              child: Dismissible(
-                                key: Key(taskId),
-                                direction: DismissDirection.endToStart,
-                                background: Container(
-                                  alignment: Alignment.centerRight,
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 20,
-                                  ),
-                                  color: Colors.red,
-                                  child: const Icon(
-                                    Icons.delete,
-                                    color: Colors.white,
-                                  ),
-                                ),
-                                onDismissed: (_) => _deleteTask(index),
-                                child: Card(
-                                  margin: const EdgeInsets.symmetric(
-                                    horizontal: 16,
-                                    vertical: 6,
-                                  ),
-                                  elevation: 2,
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(12),
-                                  ),
-                                  clipBehavior: Clip
-                                      .antiAlias, // Penting agar warna strip mengikuti lengkungan card
-                                  child: Container(
-                                    decoration: BoxDecoration(
-                                      border: Border(
-                                        left: BorderSide(
-                                          color: _getColor(task['priority']),
-                                          width: 6,
-                                        ),
-                                      ),
-                                    ),
-                                    child: ListTile(
-                                      contentPadding:
-                                          const EdgeInsets.symmetric(
-                                            horizontal: 16,
-                                            vertical: 4,
-                                          ),
-                                      title: Text(
-                                        task['name'],
-                                        style: const TextStyle(
-                                          fontWeight: FontWeight.bold,
-                                        ),
-                                      ),
-                                      subtitle: Text(
-                                        "${task['duration']} Menit • ${task['priority']}",
-                                        style: TextStyle(
-                                          color: Colors.grey[600],
-                                        ),
-                                      ),
-                                      trailing: IconButton(
-                                        icon: const Icon(
-                                          Icons.delete_outline,
-                                          color: Colors.redAccent,
-                                          size: 20,
-                                        ),
-                                        onPressed: () => _deleteTask(index),
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ),
-                        );
+                      itemBuilder: (context, index, animation) {
+                        return _buildTaskItem(tasks[index], index, animation);
                       },
                     ),
                   ),
