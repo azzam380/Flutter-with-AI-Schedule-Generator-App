@@ -44,9 +44,9 @@ class _ScheduleResultScreenState extends State<ScheduleResultScreen> {
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(20),
           ),
-          title: const Row(
+          title: Row(
             children: [
-              Icon(Icons.calendar_month, color: Colors.indigo),
+              Icon(Icons.calendar_month, color: Theme.of(context).primaryColor),
               SizedBox(width: 10),
               Text("Pilih Kalender"),
             ],
@@ -63,7 +63,7 @@ class _ScheduleResultScreenState extends State<ScheduleResultScreen> {
                 return ListTile(
                   leading: CircleAvatar(
                     backgroundColor: isSelected
-                        ? Colors.indigo
+                        ? Theme.of(context).primaryColor
                         : Colors.grey.shade200,
                     child: Icon(
                       Icons.event,
@@ -82,7 +82,10 @@ class _ScheduleResultScreenState extends State<ScheduleResultScreen> {
                     cal.id == 'primary' ? 'Kalender Utama' : 'Kalender Custom',
                   ),
                   trailing: isSelected
-                      ? const Icon(Icons.check_circle, color: Colors.indigo)
+                      ? Icon(
+                          Icons.check_circle,
+                          color: Theme.of(context).primaryColor,
+                        )
                       : null,
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12),
@@ -194,7 +197,7 @@ class _ScheduleResultScreenState extends State<ScheduleResultScreen> {
     return Scaffold(
       backgroundColor: Colors.grey[50],
       appBar: AppBar(
-        title: const Text("Hasil Jadwal Optimal"),
+        title: const Text("AI Schedule"),
         centerTitle: true,
         actions: [
           IconButton(
@@ -225,19 +228,28 @@ class _ScheduleResultScreenState extends State<ScheduleResultScreen> {
                   horizontal: 16,
                 ),
                 decoration: BoxDecoration(
-                  color: Colors.indigo.shade50,
+                  color: Theme.of(
+                    context,
+                  ).colorScheme.primaryContainer.withOpacity(0.3),
                   borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: Colors.indigo.shade100),
+                  border: Border.all(
+                    color: Theme.of(
+                      context,
+                    ).colorScheme.primary.withOpacity(0.2),
+                  ),
                 ),
                 child: Row(
                   children: [
-                    const Icon(Icons.auto_awesome, color: Colors.indigo),
+                    Icon(
+                      Icons.auto_awesome,
+                      color: Theme.of(context).primaryColor,
+                    ),
                     const SizedBox(width: 12),
                     Expanded(
                       child: Text(
                         "Mengekspor ke: $selectedCalendarName",
-                        style: const TextStyle(
-                          color: Colors.indigo,
+                        style: TextStyle(
+                          color: Theme.of(context).colorScheme.primary,
                           fontSize: 13,
                           fontWeight: FontWeight.w500,
                         ),
@@ -276,19 +288,19 @@ class _ScheduleResultScreenState extends State<ScheduleResultScreen> {
                           height: 1.6,
                           color: Colors.black87,
                         ),
-                        h1: const TextStyle(
+                        h1: TextStyle(
                           fontSize: 24,
                           fontWeight: FontWeight.bold,
-                          color: Colors.indigo,
+                          color: Theme.of(context).colorScheme.primary,
                         ),
                         h2: const TextStyle(
                           fontSize: 20,
                           fontWeight: FontWeight.bold,
                         ),
-                        h3: const TextStyle(
+                        h3: TextStyle(
                           fontSize: 18,
                           fontWeight: FontWeight.w600,
-                          color: Colors.indigoAccent,
+                          color: Theme.of(context).colorScheme.secondary,
                         ),
                         tableBorder: TableBorder.all(
                           color: Colors.grey.shade300,

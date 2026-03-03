@@ -21,16 +21,7 @@ class CalendarEvent {
 class CalendarService {
   // GANTI dengan Client ID dari Google Cloud Console
   static const String googleClientId =
-      "809885834954-j6u776unsh6e6re2g3p2v943k9b4o1v0.apps.googleusercontent.com";
-
-  static Future<void> _initialize() async {
-    final googleSignIn = GoogleSignIn.instance;
-    await googleSignIn.initialize(
-      clientId: googleClientId.contains("YOUR_CLIENT_ID")
-          ? null
-          : googleClientId,
-    );
-  }
+      "585930392757-bdreeg609hdjqbh1po4sberloojjrom7.apps.googleusercontent.com";
 
   /// Mendapatkan daftar kalender user
   static Future<List<cal.CalendarListEntry>> getCalendarList() async {
@@ -46,27 +37,29 @@ class CalendarService {
   }
 
   static Future<http.Client> _getAuthClient() async {
-    final googleSignIn = GoogleSignIn.instance;
+    final googleSignIn = GoogleSignIn(
+      clientId: kIsWeb ? googleClientId : null,
+      scopes: [
+        cal.CalendarApi.calendarEventsScope,
+        cal.CalendarApi.calendarReadonlyScope,
+      ],
+    );
 
+    GoogleSignInAccount? account;
     if (kIsWeb) {
-      // Pada web, gunakan signIn() karena authenticate() tidak didukung
-      await (googleSignIn as dynamic).signIn();
+      account = await googleSignIn.signIn();
     } else {
-      await _initialize();
-      // On mobile, use authenticate() or signIn()
-      await (googleSignIn as dynamic).signIn();
+      account = await googleSignIn.signInSilently();
+      account ??= await googleSignIn.signIn();
     }
 
-    final scopes = <String>[
-      cal.CalendarApi.calendarEventsScope,
-      cal.CalendarApi.calendarReadonlyScope,
-    ];
+    if (account == null)
+      throw Exception("User must be signed in to access Google Calendar");
 
-    // 2. Gunakan authorizationClient untuk meminta izin
-    final auth = await googleSignIn.authorizationClient.authorizeScopes(scopes);
+    final authClient = await googleSignIn.authenticatedClient();
+    if (authClient == null)
+      throw Exception("Failed to get authenticated client");
 
-    // 3. Mendapatkan authClient
-    final authClient = auth.authClient(scopes: scopes);
     return authClient;
   }
 
@@ -104,50 +97,53 @@ class CalendarService {
   /// Memparse tabel Markdown ke List<CalendarEvent>
   static List<CalendarEvent> parseMarkdown(String markdown) {
     final List<CalendarEvent> events = [];
+    
+    // Format yang diharapkan (sesuai prompt): | No | Waktu | Nama Tugas | Durasi | Prioritas |
+    // Contoh: | 1 | 08:00 - 08:30 | Olahraga | 30 menit | Tinggi |
     final regExp = RegExp(
-      r'\|\s*\d+\s*\|\s*([^|]+)\s*\|\s*([^|]+)\s*\|\s*(\d+)\s*\|\s*(\d{2}:\d{2})\s*\|\s*(\d{2}:\d{2})\s*\|',
+      r'\|\s*\d+\s*\|\s*(\d{1,2})[:.](\d{2})\s*-\s*(\d{1,2})[:.](\d{2})\s*\|\s*([^|]+)\s*\|\s*([^|]+)\s*\|\s*([^|]+)\s*\|',
     );
 
     final now = DateTime.now();
     final matches = regExp.allMatches(markdown);
 
     for (final match in matches) {
-      final title = match.group(1)!.trim();
-      if (title.toLowerCase() == 'tugas' || title.contains('---')) continue;
+      final timeStartHour = match.group(1);
+      if (timeStartHour == null) continue;
 
       try {
-        final priority = match.group(2)!.trim();
-        final startTimeStr = match.group(4)!.trim();
-        final endTimeStr = match.group(5)!.trim();
+        final startHour = int.parse(match.group(1)!);
+        final startMin = int.parse(match.group(2)!);
+        final endHour = int.parse(match.group(3)!);
+        final endMin = int.parse(match.group(4)!);
+        final title = match.group(5)!.trim();
+        final duration = match.group(6)!.trim();
+        final priority = match.group(7)!.trim();
 
-        final startParts = startTimeStr.split(':');
-        final endParts = endTimeStr.split(':');
+        // Skip header atau baris pemisah
+        if (title.toLowerCase() == 'nama tugas' || title.contains('---')) continue;
 
         final startTime = DateTime(
           now.year,
           now.month,
           now.day,
-          int.parse(startParts[0]),
-          int.parse(startParts[1]),
+          startHour,
+          startMin,
         );
 
-        final endTime = DateTime(
-          now.year,
-          now.month,
-          now.day,
-          int.parse(endParts[0]),
-          int.parse(endParts[1]),
-        );
+        final endTime = DateTime(now.year, now.month, now.day, endHour, endMin);
 
         events.add(
           CalendarEvent(
             title: title,
-            description: 'Prioritas: $priority (AI Generated)',
+            description: 'Durasi: $duration, Prioritas: $priority (AI Generated)',
             startTime: startTime,
             endTime: endTime,
           ),
         );
-      } catch (_) {}
+      } catch (e) {
+        debugPrint("Parse Error row: $e");
+      }
     }
     return events;
   }

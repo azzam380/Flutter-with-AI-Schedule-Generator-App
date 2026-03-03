@@ -1,0 +1,92 @@
+{
+  "project_info": {
+    "project_number": "29543706582",
+    "project_id": "ai-schedule-generator-ap-23a91",
+    "storage_bucket": "ai-schedule-generator-ap-23a91.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:29543706582:android:d62335c47ea94032affe77",
+        "android_client_info": {
+          "package_name": "com.azzam.ai_schedule"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "29543706582-fhi05r8tkk2qderh85foik6hu1okvmiv.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.azzam.ai_schedule",
+            "certificate_hash": "97d901e192b2320c6de5a972074a7b0652b626de"
+          }
+        },
+        {
+          "client_id": "29543706582-qucu72ckmi37buoneqkjncbj4nnorcua.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.azzam.ai_schedule",
+            "certificate_hash": "97d9031fb1ae8ae98fbecc574a7b0652b626de60"
+          }
+        },
+        {
+          "client_id": "29543706582-f9q6bsdcvpr0l90abdsi7jktvj7gdc06.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAmBHsQ-0FkdLQ_I6h5-22lQMyFqPDeG3Q"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "29543706582-f9q6bsdcvpr0l90abdsi7jktvj7gdc06.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:29543706582:android:0f9b639c1e87c4dcaffe77",
+        "android_client_info": {
+          "package_name": "com.example.ai_schedule_generator"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "29543706582-2htitdgqp4l625ir26up1dr4roq6jhc2.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.ai_schedule_generator",
+            "certificate_hash": "97d901e192b2320c6de5a972074a7b0652b626de"
+          }
+        },
+        {
+          "client_id": "29543706582-f9q6bsdcvpr0l90abdsi7jktvj7gdc06.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAmBHsQ-0FkdLQ_I6h5-22lQMyFqPDeG3Q"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "29543706582-f9q6bsdcvpr0l90abdsi7jktvj7gdc06.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

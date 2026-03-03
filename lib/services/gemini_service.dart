@@ -3,7 +3,7 @@ import 'package:http/http.dart' as http;
 
 class GeminiService {
   // API Key - GANTI dengan milikmu (jangan hardcode di production!)
-  static const String apiKey = "AIzaSyAfDvwFo8384m67B1oWowng0HnRPyBrJ1o";
+  static const String apiKey = "AIzaSyC7NlWv9hb0oBNzoI2zowS0JczUmP8wqfY";
 
   // Gunakan model stabil terbaru (per 2026: gemini-1.5-flash atau gemini-1.5-flash-latest)
   static const String model = "gemini-2.5-flash";
@@ -28,10 +28,10 @@ class GeminiService {
           },
         ],
         "generationConfig": {
-          "temperature": 0.7,
+          "temperature": 0.2, // Lebih rendah untuk konsistensi format
           "topK": 40,
           "topP": 0.95,
-          "maxOutputTokens": 1024,
+          "maxOutputTokens": 2048, // Lebih banyak untuk antisipasi list panjang
         },
       };
 
@@ -62,14 +62,17 @@ class GeminiService {
         return "Tidak ada jadwal yang dihasilkan dari AI.";
       } else {
         print(
-            "API Error - Status: ${response.statusCode}, Body: ${response.body}");
+          "API Error - Status: ${response.statusCode}, Body: ${response.body}",
+        );
         if (response.statusCode == 404) {
           throw Exception(
-              "Endpoint/model tidak ditemukan (404). Cek apakah model '$model' tersedia untuk API key/proyekmu. Body: ${response.body}");
+            "Endpoint/model tidak ditemukan (404). Cek apakah model '$model' tersedia untuk API key/proyekmu. Body: ${response.body}",
+          );
         }
         if (response.statusCode == 429) {
           throw Exception(
-              "Rate limit tercapai (429). Tunggu beberapa menit atau upgrade quota.");
+            "Rate limit tercapai (429). Tunggu beberapa menit atau upgrade quota.",
+          );
         }
         if (response.statusCode == 401) {
           throw Exception("API key tidak valid (401). Periksa key Anda.");
@@ -78,7 +81,8 @@ class GeminiService {
           throw Exception("Request salah format (400): ${response.body}");
         }
         throw Exception(
-            "Gagal memanggil Gemini API (Code: ${response.statusCode}). Body: ${response.body}");
+          "Gagal memanggil Gemini API (Code: ${response.statusCode}). Body: ${response.body}",
+        );
       }
     } catch (e) {
       print("Exception saat generate schedule: $e");
@@ -89,23 +93,51 @@ class GeminiService {
   static String _buildPrompt(List<Map<String, dynamic>> tasks) {
     final buffer = StringBuffer();
     buffer.writeln(
-        "Kamu adalah asisten penjadwalan. Buat jadwal yang BENAR-BENAR konkret dan bisa langsung diikuti.\n"
-        "Aturan:\n"
-        "- Urutkan berdasarkan prioritas: Tinggi > Sedang > Rendah.\n"
-        "- Untuk prioritas yang sama, dahulukan durasi lebih pendek.\n"
-        "- Jadwal dimulai dari 08:00.\n"
-        "- Setiap tugas harus punya jam mulai dan jam selesai (format HH:mm).\n"
-        "- Tidak boleh ada tugas yang hilang.\n"
-        "- Output WAJIB hanya 1 tabel Markdown, tanpa paragraf pembuka/penutup.\n"
-        "Kolom tabel: | No | Tugas | Prioritas | Durasi (menit) | Mulai | Selesai |\n"
-        "\nDaftar tugas:\n");
-
-    for (final task in tasks) {
-      final name = (task["name"] ?? "").toString();
-      final prio = (task["priority"] ?? "").toString();
-      final duration = task["duration"];
-      buffer.writeln("- Tugas: $name | Prioritas: $prio | Durasi: $duration menit");
+      "Tolong buatkan jadwal harian berdasarkan daftar tugas berikut:",
+    );
+    for (var task in tasks) {
+      buffer.writeln(
+        "- ${task['name']} (Durasi: ${task['duration']} menit, Prioritas: ${task['priority']})",
+      );
     }
+
+    buffer.writeln("\n=============");
+    buffer.writeln("Instruksi penting:");
+    buffer.writeln("1. Jadwalkan tugas mulai dari jam 08:00 pagi.");
+    buffer.writeln(
+      "2. Tugas dengan prioritas TINGGI harus dijadwalkan lebih awal.",
+    );
+    buffer.writeln(
+      "3. Berikan waktu istirahat singkat (5–15 menit) antar tugas jika diperlukan.",
+    );
+    buffer.writeln(
+      "4. WAJIB memasukkan SEMUA tugas yang ada di daftar di atas ke dalam tabel, jangan ada yang tertinggal.",
+    );
+    buffer.writeln("");
+    buffer.writeln("FORMAT OUTPUT WAJIB (gunakan Markdown):");
+    buffer.writeln("");
+    buffer.writeln("## Jadwal Harian Optimal");
+    buffer.writeln("");
+    buffer.writeln(
+      "Gunakan tabel Markdown dengan urutan kolom TEPAT seperti ini:",
+    );
+    buffer.writeln("| No | Waktu | Nama Tugas | Durasi | Prioritas |");
+    buffer.writeln("|----|----|----|----|----|");
+    buffer.writeln(
+      "| Contoh: 1 | 08:00 - 08:30 | Nama Tugas | 30 menit | Tinggi |",
+    );
+    buffer.writeln("");
+    buffer.writeln("Setelah tabel, tambahkan bagian:");
+    buffer.writeln("");
+    buffer.writeln("## Catatan & Penjelasan");
+    buffer.writeln("");
+    buffer.writeln("Di bagian ini, jelaskan:");
+    buffer.writeln("- Alasan urutan jadwal yang dipilih");
+    buffer.writeln("- Tips produktivitas berdasarkan jadwal tersebut");
+    buffer.writeln("- Total waktu kegiatan dan estimasi jam selesai");
+    buffer.writeln("");
+    buffer.writeln("Gunakan bahasa Indonesia yang ramah dan profesional.");
+
     return buffer.toString();
   }
 }

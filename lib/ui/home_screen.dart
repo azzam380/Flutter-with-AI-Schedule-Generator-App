@@ -120,7 +120,14 @@ class _HomeScreenState extends State<HomeScreen> {
               builder: (context) {
                 final user = AuthService.currentUser;
                 return UserAccountsDrawerHeader(
-                  decoration: BoxDecoration(color: Colors.indigo.shade700),
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [
+                        Theme.of(context).colorScheme.primary,
+                        Theme.of(context).colorScheme.secondary,
+                      ],
+                    ),
+                  ),
                   currentAccountPicture: CircleAvatar(
                     backgroundColor: Colors.white,
                     backgroundImage: user?.photoUrl != null
@@ -130,7 +137,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         ? const Icon(
                             Icons.person,
                             size: 40,
-                            color: Colors.indigo,
+                            color: Colors.white,
                           )
                         : null,
                   ),
@@ -164,6 +171,14 @@ class _HomeScreenState extends State<HomeScreen> {
               },
             ),
             const Spacer(),
+            Padding(
+              padding: const EdgeInsets.all(20.0),
+              child: Image.asset(
+                'assets/images/logo.png',
+                height: 60,
+                opacity: const AlwaysStoppedAnimation(0.5),
+              ),
+            ),
             const Divider(),
             ListTile(
               leading: const Icon(Icons.logout, color: Colors.red),
@@ -183,7 +198,10 @@ class _HomeScreenState extends State<HomeScreen> {
         ),
       ),
       appBar: AppBar(
-        title: const Text("AI Schedule Generator"),
+        title: const Text(
+          "AI Schedule",
+          style: TextStyle(fontWeight: FontWeight.bold),
+        ),
         leading: Builder(
           builder: (context) {
             final user = AuthService.currentUser;
@@ -204,12 +222,6 @@ class _HomeScreenState extends State<HomeScreen> {
           },
         ),
         actions: [
-          IconButton(
-            icon: const Icon(Icons.logout),
-            onPressed: () async {
-              await AuthService.signOut();
-            },
-          ),
           if (tasks.isNotEmpty)
             IconButton(
               icon: const Icon(Icons.delete_sweep),
@@ -330,6 +342,24 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
             ),
           ),
+          if (tasks.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
+              child: Row(
+                children: [
+                  Icon(Icons.list_alt, size: 18, color: Colors.grey[600]),
+                  const SizedBox(width: 8),
+                  Text(
+                    "Total: ${tasks.length} Tugas",
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      color: Colors.grey[700],
+                      fontSize: 14,
+                    ),
+                  ),
+                ],
+              ),
+            ),
           Expanded(
             child: tasks.isEmpty
                 ? AnimationConfiguration.synchronized(
@@ -395,33 +425,43 @@ class _HomeScreenState extends State<HomeScreen> {
                                   shape: RoundedRectangleBorder(
                                     borderRadius: BorderRadius.circular(12),
                                   ),
-                                  child: ListTile(
-                                    leading: CircleAvatar(
-                                      backgroundColor: _getColor(
-                                        task['priority'],
-                                      ),
-                                      child: Text(
-                                        task['name'][0].toUpperCase(),
-                                        style: const TextStyle(
-                                          color: Colors.white,
+                                  clipBehavior: Clip
+                                      .antiAlias, // Penting agar warna strip mengikuti lengkungan card
+                                  child: Container(
+                                    decoration: BoxDecoration(
+                                      border: Border(
+                                        left: BorderSide(
+                                          color: _getColor(task['priority']),
+                                          width: 6,
                                         ),
                                       ),
                                     ),
-                                    title: Text(
-                                      task['name'],
-                                      style: const TextStyle(
-                                        fontWeight: FontWeight.bold,
+                                    child: ListTile(
+                                      contentPadding:
+                                          const EdgeInsets.symmetric(
+                                            horizontal: 16,
+                                            vertical: 4,
+                                          ),
+                                      title: Text(
+                                        task['name'],
+                                        style: const TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                        ),
                                       ),
-                                    ),
-                                    subtitle: Text(
-                                      "${task['duration']} Menit • ${task['priority']}",
-                                    ),
-                                    trailing: IconButton(
-                                      icon: const Icon(
-                                        Icons.delete_outline,
-                                        color: Colors.grey,
+                                      subtitle: Text(
+                                        "${task['duration']} Menit • ${task['priority']}",
+                                        style: TextStyle(
+                                          color: Colors.grey[600],
+                                        ),
                                       ),
-                                      onPressed: () => _deleteTask(index),
+                                      trailing: IconButton(
+                                        icon: const Icon(
+                                          Icons.delete_outline,
+                                          color: Colors.redAccent,
+                                          size: 20,
+                                        ),
+                                        onPressed: () => _deleteTask(index),
+                                      ),
                                     ),
                                   ),
                                 ),
@@ -435,21 +475,52 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         ],
       ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: isLoading ? null : _generateSchedule,
-        backgroundColor: Colors.indigo,
-        foregroundColor: Colors.white,
-        icon: isLoading
-            ? const SizedBox(
-                width: 20,
-                height: 20,
-                child: CircularProgressIndicator(
-                  color: Colors.white,
-                  strokeWidth: 2,
+      bottomNavigationBar: Container(
+        padding: const EdgeInsets.all(16.0),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.05),
+              blurRadius: 10,
+              offset: const Offset(0, -5),
+            ),
+          ],
+        ),
+        child: SafeArea(
+          child: SizedBox(
+            height: 56,
+            width: double.infinity,
+            child: ElevatedButton.icon(
+              onPressed: isLoading ? null : _generateSchedule,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Theme.of(context).colorScheme.primary,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
                 ),
-              )
-            : const Icon(Icons.auto_awesome),
-        label: Text(isLoading ? "Memproses..." : "Buat Jadwal AI"),
+                elevation: 0,
+              ),
+              icon: isLoading
+                  ? const SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(
+                        color: Colors.white,
+                        strokeWidth: 2,
+                      ),
+                    )
+                  : const Icon(Icons.auto_awesome),
+              label: Text(
+                isLoading ? "Memproses..." : "Buat Jadwal AI",
+                style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+          ),
+        ),
       ),
     );
   }
